@@ -672,10 +672,23 @@ const GoogleAdsAccounts = () => {
 
                 {/* Accounts Tabs */}
                 <Tabs defaultValue="created" className="space-y-4">
-                  <TabsList className="bg-secondary/50">
-                    <TabsTrigger value="created">Новые ({googleAccounts.length})</TabsTrigger>
-                    <TabsTrigger value="all">Все в MCC ({summary.total || 0})</TabsTrigger>
-                    <TabsTrigger value="folders">Суб МСС ({folders.length})</TabsTrigger>
+                  <TabsList className="bg-secondary/30 p-1 rounded-xl border border-border/50">
+                    <TabsTrigger 
+                      value="created" 
+                      className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400 data-[state=active]:border-green-500/30 rounded-lg px-4 py-2 gap-2 border border-transparent transition-all"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Новые
+                      <span className="bg-green-500/30 text-green-400 px-2 py-0.5 rounded-full text-xs font-bold">{googleAccounts.length}</span>
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="folders"
+                      className="data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-400 data-[state=active]:border-yellow-500/30 rounded-lg px-4 py-2 gap-2 border border-transparent transition-all"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      Суб МСС
+                      <span className="bg-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full text-xs font-bold">{folders.length}</span>
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* Created by us */}
@@ -742,127 +755,6 @@ const GoogleAdsAccounts = () => {
                           );
                         })}
                       </div>
-                    )}
-                  </TabsContent>
-
-                  {/* All MCC accounts with metrics */}
-                  <TabsContent value="all">
-                    {loadingAccounts ? (
-                      <div className="text-center py-12">
-                        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mt-2">Загружаем аккаунты и метрики...</p>
-                      </div>
-                    ) : !mss.google_refresh_token ? (
-                      <Card className="glass border-border/50">
-                        <CardContent className="py-12 text-center">
-                          <p className="text-muted-foreground">Подключите Google Ads чтобы видеть все аккаунты</p>
-                        </CardContent>
-                      </Card>
-                    ) : mccAccounts.length === 0 ? (
-                      <Card className="glass border-border/50">
-                        <CardContent className="py-12 text-center">
-                          <p className="text-muted-foreground">Нет аккаунтов в MCC</p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <Card className="glass border-border/50 overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-secondary/30 border-b border-border/50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Аккаунт</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Клики</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Показы</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">CTR</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Ср.CPC</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Расход</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Конв.</th>
-                                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"></th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/30">
-                              {mccAccounts.map((account) => (
-                                <tr key={account.id} className={`hover:bg-secondary/20 transition-colors ${account.createdByUs ? 'bg-green-500/5' : ''}`}>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center gap-3">
-                                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                        account.createdByUs 
-                                          ? 'bg-green-500/10 border border-green-500/20' 
-                                          : 'bg-secondary/50'
-                                      }`}>
-                                        <Building2 className={`h-4 w-4 ${account.createdByUs ? 'text-green-400' : 'text-muted-foreground'}`} />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-mono text-sm">{formatCustomerId(account.id)}</span>
-                                          {account.createdByUs && (
-                                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0">Наш</Badge>
-                                          )}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{account.name}</p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-sm">
-                                    {(account.metrics?.clicks || 0).toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
-                                    {(account.metrics?.impressions || 0).toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-sm">
-                                    <span className={account.metrics?.ctr && account.metrics.ctr > 2 ? 'text-green-400' : ''}>
-                                      {(account.metrics?.ctr || 0).toFixed(2)}%
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
-                                    ${(account.metrics?.avgCpc || 0).toFixed(2)}
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-sm font-medium">
-                                    <span className={account.metrics?.cost && account.metrics.cost > 0 ? 'text-primary' : 'text-muted-foreground'}>
-                                      ${(account.metrics?.cost || 0).toLocaleString()}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-mono text-sm">
-                                    <span className={account.metrics?.conversions && account.metrics.conversions > 0 ? 'text-orange-400' : 'text-muted-foreground'}>
-                                      {(account.metrics?.conversions || 0).toFixed(1)}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-center">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 w-7 p-0"
-                                      onClick={() => window.open(`https://ads.google.com/aw/overview?ocid=${account.id}`, '_blank')}
-                                    >
-                                      <ExternalLink className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            {/* Totals row */}
-                            <tfoot className="bg-secondary/40 border-t-2 border-primary/30">
-                              <tr className="font-semibold">
-                                <td className="px-4 py-3 text-sm">ИТОГО ({mccAccounts.length} акк.)</td>
-                                <td className="px-4 py-3 text-right font-mono text-sm">{totals.clicks.toLocaleString()}</td>
-                                <td className="px-4 py-3 text-right font-mono text-sm">{totals.impressions.toLocaleString()}</td>
-                                <td className="px-4 py-3 text-right font-mono text-sm">
-                                  {totals.impressions > 0 ? ((totals.clicks / totals.impressions) * 100).toFixed(2) : '0.00'}%
-                                </td>
-                                <td className="px-4 py-3 text-right font-mono text-sm">
-                                  ${totals.clicks > 0 ? (totals.cost / totals.clicks).toFixed(2) : '0.00'}
-                                </td>
-                                <td className="px-4 py-3 text-right font-mono text-sm text-primary">${totals.cost.toLocaleString()}</td>
-                                <td className="px-4 py-3 text-right font-mono text-sm text-orange-400">{totals.conversions.toFixed(1)}</td>
-                                <td></td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                        <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border/30 bg-secondary/20">
-                          * Данные за последние 30 дней
-                        </div>
-                      </Card>
                     )}
                   </TabsContent>
 
