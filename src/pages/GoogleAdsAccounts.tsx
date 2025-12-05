@@ -154,14 +154,15 @@ const GoogleAdsAccounts = () => {
     }
   };
 
-  // Auto-refresh timer
+  // Auto-refresh timer - refreshes ALL data every 30 min
   useEffect(() => {
     if (selectedMSS) {
       // Start countdown
       timerRef.current = setInterval(() => {
         setTimeToRefresh(prev => {
           if (prev <= 1) {
-            // Auto-refresh
+            // Auto-refresh ALL data
+            loadMSSData(selectedMSS);
             loadBudgets(selectedMSS);
             return 1800;
           }
@@ -592,28 +593,27 @@ const GoogleAdsAccounts = () => {
               Управление аккаунтами по MCC
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-4">
+            {/* Timer */}
+            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-lg">
+              <Clock className="h-4 w-4" />
+              <span>Оновлення: {formatTime(timeToRefresh)}</span>
+            </div>
+            
+            {/* Refresh button */}
             <Button 
-              onClick={syncAllMSSMetrics} 
+              onClick={() => {
+                if (selectedMSS) {
+                  loadMSSData(selectedMSS);
+                  loadBudgets(selectedMSS);
+                }
+              }} 
               variant="outline" 
               className="gap-2 border-emerald-600/50 text-emerald-400 hover:bg-emerald-600/20 hover:text-emerald-300 hover:border-emerald-500/70"
-              disabled={loadingMetrics}
+              disabled={loadingAccounts || loadingBudgets}
             >
-              {loadingMetrics ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <DollarSign className="h-4 w-4" />
-              )}
-              Синхронизировать метрики
-            </Button>
-            <Button 
-              onClick={() => selectedMSS && loadMSSData(selectedMSS)} 
-              variant="outline" 
-              className="gap-2"
-              disabled={loadingAccounts}
-            >
-              <RefreshCw className={`h-4 w-4 ${loadingAccounts ? 'animate-spin' : ''}`} />
-              Обновить
+              <RefreshCw className={`h-4 w-4 ${(loadingAccounts || loadingBudgets) ? 'animate-spin' : ''}`} />
+              Оновити все
             </Button>
           </div>
         </div>
@@ -779,20 +779,6 @@ const GoogleAdsAccounts = () => {
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Timer */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {budgetData.lastUpdated 
-                      ? `Оновлено: ${new Date(budgetData.lastUpdated).toLocaleTimeString('uk-UA')}`
-                      : 'Клікни на "Бюджет" для завантаження'
-                    }
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Авто-оновлення: {formatTime(timeToRefresh)}
-                  </span>
                 </div>
 
                 {/* Hierarchy Tree View */}
