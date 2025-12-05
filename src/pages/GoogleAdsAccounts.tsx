@@ -670,203 +670,169 @@ const GoogleAdsAccounts = () => {
                   </Card>
                 </div>
 
-                {/* Accounts Tabs */}
-                <Tabs defaultValue="created" className="space-y-4">
-                  <TabsList className="bg-secondary/30 p-1 rounded-xl border border-border/50">
-                    <TabsTrigger 
-                      value="created" 
-                      className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400 data-[state=active]:border-green-500/30 rounded-lg px-4 py-2 gap-2 border border-transparent transition-all"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      Новые
-                      <span className="bg-green-500/30 text-green-400 px-2 py-0.5 rounded-full text-xs font-bold">{googleAccounts.length}</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="folders"
-                      className="data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-400 data-[state=active]:border-yellow-500/30 rounded-lg px-4 py-2 gap-2 border border-transparent transition-all"
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      Суб МСС
-                      <span className="bg-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full text-xs font-bold">{folders.length}</span>
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Created by us */}
-                  <TabsContent value="created">
-                    {loadingAccounts ? (
-                      <div className="text-center py-12">
-                        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                      </div>
-                    ) : googleAccounts.length === 0 ? (
-                      <Card className="glass border-border/50">
-                        <CardContent className="py-12 text-center">
-                          <p className="text-muted-foreground">Нет новых аккаунтов</p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {googleAccounts.map((account, index) => {
-                          const accountInvitation = invitations[index];
+                {/* Hierarchy Tree View */}
+                <div className="space-y-4">
+                  {loadingAccounts ? (
+                    <div className="text-center py-12">
+                      <RefreshCw className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <>
+                      {/* New Accounts Section */}
+                      {googleAccounts.length > 0 && (
+                        <div className="space-y-3">
+                          <div 
+                            className="flex items-center gap-3 cursor-pointer group"
+                            onClick={() => {
+                              const newSet = new Set(expandedFolders);
+                              if (newSet.has('new-accounts')) {
+                                newSet.delete('new-accounts');
+                              } else {
+                                newSet.add('new-accounts');
+                              }
+                              setExpandedFolders(newSet);
+                            }}
+                          >
+                            <ChevronRight className={`h-4 w-4 text-green-400 transition-transform ${expandedFolders.has('new-accounts') ? 'rotate-90' : ''}`} />
+                            <div className="h-8 w-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                              <Sparkles className="h-4 w-4 text-green-400" />
+                            </div>
+                            <span className="font-semibold text-green-400">Новые аккаунты</span>
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+                              {googleAccounts.length}
+                            </Badge>
+                          </div>
                           
-                          return (
-                            <Card key={account.id} className="glass border-border/50 hover:border-green-500/30 transition-all">
-                              <CardContent className="p-4">
-                                {/* Header */}
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/20 flex items-center justify-center">
-                                    <Sparkles className="h-4 w-4 text-green-400" />
+                          {expandedFolders.has('new-accounts') && (
+                            <div className="ml-6 border-l-2 border-green-500/30 pl-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                              {googleAccounts.map((account, index) => {
+                                const accountInvitation = invitations[index];
+                                return (
+                                  <Card key={account.id} className="glass border-border/50 hover:border-green-500/30 transition-all">
+                                    <CardContent className="p-3">
+                                      <div className="font-mono font-bold text-sm mb-1">
+                                        {formatCustomerId(account.customer_id)}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <span>{account.currency_code}</span>
+                                        <span>•</span>
+                                        <span>{account.timezone}</span>
+                                      </div>
+                                      {accountInvitation && (
+                                        <div className="flex items-center gap-1 mt-2 text-xs text-blue-400">
+                                          <Mail className="h-3 w-3" />
+                                          <span className="truncate">{accountInvitation.email}</span>
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Sub-MCCs Section */}
+                      {folders.length > 0 && (
+                        <div className="space-y-2">
+                          {folders.map((folder) => {
+                            const isExpanded = expandedFolders.has(folder.id);
+                            const folderAccounts = folder.accounts || [];
+                            
+                            return (
+                              <div key={folder.id}>
+                                <div 
+                                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/30 cursor-pointer transition-all group"
+                                  onClick={() => toggleFolder(folder.id)}
+                                >
+                                  <ChevronRight className={`h-4 w-4 text-yellow-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                  <div className="h-8 w-8 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+                                    {isExpanded ? (
+                                      <FolderOpen className="h-4 w-4 text-yellow-400" />
+                                    ) : (
+                                      <FolderClosed className="h-4 w-4 text-yellow-400" />
+                                    )}
                                   </div>
-                                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
-                                    Создан
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold truncate">{folder.name}</span>
+                                      <Badge variant="outline" className="text-[10px] text-yellow-400 border-yellow-500/30 shrink-0">
+                                        SUB-MCC
+                                      </Badge>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground font-mono">{formatCustomerId(folder.id)}</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-xs text-muted-foreground shrink-0">
+                                    {folder.accountCount || 0} акк.
                                   </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(`https://ads.google.com/aw/accounts?ocid=${folder.id}`, '_blank');
+                                    }}
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
                                 
-                                {/* Account ID */}
-                                <div className="font-mono font-bold text-lg mb-2">
-                                  {formatCustomerId(account.customer_id)}
-                                </div>
-                                
-                                {/* Details */}
-                                <div className="space-y-1 text-sm text-muted-foreground">
-                                  <div className="flex items-center gap-2">
-                                    <DollarSign className="h-3.5 w-3.5" />
-                                    <span>{account.currency_code}</span>
-                                    <Clock className="h-3.5 w-3.5 ml-2" />
-                                    <span>{account.timezone}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    <span>{new Date(account.created_at).toLocaleDateString('ru-RU')}</span>
-                                  </div>
-                                </div>
-                                
-                                {/* Invitation */}
-                                {accountInvitation && (
-                                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/30">
-                                    <Mail className="h-3.5 w-3.5 text-blue-400" />
-                                    <span className="text-xs text-blue-400 truncate">{accountInvitation.email}</span>
-                                    <Badge variant="outline" className="text-[10px] capitalize ml-auto">
-                                      {accountInvitation.access_level}
-                                    </Badge>
+                                {isExpanded && (
+                                  <div className="ml-6 border-l-2 border-yellow-500/30 pl-4 py-2 space-y-1">
+                                    {folderAccounts.length > 0 ? (
+                                      <>
+                                        {folderAccounts.slice(0, 10).map((account) => (
+                                          <div 
+                                            key={account.id} 
+                                            className="flex items-center gap-3 p-2 rounded hover:bg-secondary/20 transition-all group"
+                                          >
+                                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="text-sm font-mono">{formatCustomerId(account.id)}</span>
+                                            <span className="text-sm text-muted-foreground truncate flex-1">{account.name}</span>
+                                            <span className="text-xs text-muted-foreground">{account.currency}</span>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                                              onClick={() => window.open(`https://ads.google.com/aw/overview?ocid=${account.id}`, '_blank')}
+                                            >
+                                              <ExternalLink className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        ))}
+                                        {folderAccounts.length > 10 && (
+                                          <p className="text-xs text-muted-foreground pl-6">
+                                            +{folderAccounts.length - 10} ещё...
+                                          </p>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground pl-2 py-1">
+                                        Пусто
+                                      </p>
+                                    )}
                                   </div>
                                 )}
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </TabsContent>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
-                  {/* Folders */}
-                  <TabsContent value="folders">
-                    {loadingAccounts ? (
-                      <div className="text-center py-12">
-                        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                      </div>
-                    ) : folders.length === 0 ? (
-                      <Card className="glass border-border/50">
-                        <CardContent className="py-12 text-center">
-                          <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <p className="text-muted-foreground">Нет Суб МСС</p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-3">
-                        {folders.map((folder) => {
-                          const isExpanded = expandedFolders.has(folder.id);
-                          const folderAccounts = folder.accounts || [];
-                          
-                          return (
-                            <div key={folder.id}>
-                              <Card 
-                                className={`glass border-border/50 hover:border-yellow-500/30 transition-all cursor-pointer ${isExpanded ? 'border-yellow-500/50' : ''}`}
-                                onClick={() => toggleFolder(folder.id)}
-                              >
-                                <CardContent className="p-4">
-                                  <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-                                      {isExpanded ? (
-                                        <FolderOpen className="h-5 w-5 text-yellow-400" />
-                                      ) : (
-                                        <FolderClosed className="h-5 w-5 text-yellow-400" />
-                                      )}
-                                    </div>
-                                    <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-semibold">{folder.name}</span>
-                                        <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">sub-mcc</span>
-                                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                                          {folder.accountCount || 0} акк.
-                                        </Badge>
-                                      </div>
-                                      <p className="text-sm text-muted-foreground font-mono">{formatCustomerId(folder.id)}</p>
-                                    </div>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="gap-2"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(`https://ads.google.com/aw/accounts?ocid=${folder.id}`, '_blank');
-                                      }}
-                                    >
-                                      <ExternalLink className="h-3.5 w-3.5" />
-                                      Открыть
-                                    </Button>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                              
-                              {/* Expanded content - real accounts from this folder */}
-                              {isExpanded && (
-                                <div className="ml-6 mt-2 space-y-2 border-l-2 border-yellow-500/30 pl-4">
-                                  {folderAccounts.length > 0 ? (
-                                    <>
-                                      {folderAccounts.slice(0, 15).map((account) => (
-                                        <Card key={account.id} className="glass border-border/30">
-                                          <CardContent className="p-3">
-                                            <div className="flex items-center gap-3">
-                                              <Building2 className="h-4 w-4 text-muted-foreground" />
-                                              <span className="text-sm font-mono font-medium">{formatCustomerId(account.id)}</span>
-                                              <span className="text-sm text-muted-foreground truncate flex-1">{account.name}</span>
-                                              <span className="text-xs text-muted-foreground">{account.currency}</span>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  window.open(`https://ads.google.com/aw/overview?ocid=${account.id}`, '_blank');
-                                                }}
-                                              >
-                                                <ExternalLink className="h-3 w-3" />
-                                              </Button>
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-                                      ))}
-                                      {folderAccounts.length > 15 && (
-                                        <p className="text-xs text-muted-foreground px-2 py-1">
-                                          +{folderAccounts.length - 15} ещё...
-                                        </p>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground py-2 px-2">
-                                      Нет аккаунтов в этой папке
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                      {/* Empty state */}
+                      {googleAccounts.length === 0 && folders.length === 0 && (
+                        <Card className="glass border-border/50">
+                          <CardContent className="py-12 text-center">
+                            <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                            <p className="text-muted-foreground">Нет аккаунтов</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                </div>
               </TabsContent>
             ))}
           </Tabs>
