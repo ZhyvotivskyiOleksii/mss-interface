@@ -663,7 +663,7 @@ const GoogleAdsAccounts = () => {
                         </div>
                         <div>
                           <p className="text-2xl font-bold">{summary.folders || folders.length}</p>
-                          <p className="text-xs text-muted-foreground">Папок</p>
+                          <p className="text-xs text-muted-foreground">Суб МСС</p>
                         </div>
                       </div>
                     </CardContent>
@@ -673,9 +673,9 @@ const GoogleAdsAccounts = () => {
                 {/* Accounts Tabs */}
                 <Tabs defaultValue="created" className="space-y-4">
                   <TabsList className="bg-secondary/50">
-                    <TabsTrigger value="created">Созданные ({googleAccounts.length})</TabsTrigger>
+                    <TabsTrigger value="created">Новые ({googleAccounts.length})</TabsTrigger>
                     <TabsTrigger value="all">Все в MCC ({summary.total || 0})</TabsTrigger>
-                    <TabsTrigger value="folders">Папки ({folders.length})</TabsTrigger>
+                    <TabsTrigger value="folders">Суб МСС ({folders.length})</TabsTrigger>
                   </TabsList>
 
                   {/* Created by us */}
@@ -687,7 +687,7 @@ const GoogleAdsAccounts = () => {
                     ) : googleAccounts.length === 0 ? (
                       <Card className="glass border-border/50">
                         <CardContent className="py-12 text-center">
-                          <p className="text-muted-foreground">Нет созданных аккаунтов</p>
+                          <p className="text-muted-foreground">Нет новых аккаунтов</p>
                         </CardContent>
                       </Card>
                     ) : (
@@ -891,7 +891,7 @@ const GoogleAdsAccounts = () => {
                       <Card className="glass border-border/50">
                         <CardContent className="py-12 text-center">
                           <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <p className="text-muted-foreground">Нет папок (Sub-MCC)</p>
+                          <p className="text-muted-foreground">Нет Суб МСС</p>
                         </CardContent>
                       </Card>
                     ) : (
