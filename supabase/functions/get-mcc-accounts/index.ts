@@ -9,7 +9,6 @@ const corsHeaders = {
 // OAuth credentials
 const DEFAULT_CLIENT_ID = '572283707219-ndq1o9qi0k5uh3eucrb0e80imfabftrl.apps.googleusercontent.com';
 const DEFAULT_CLIENT_SECRET = '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';
-
 const API_VERSION = 'v22';
 
 // Get fresh access token
@@ -36,6 +35,49 @@ async function getAccessToken(
   return data.access_token;
 }
 
+// Fetch accounts from Google Ads API
+async function fetchFromGoogleAds(
+  accessToken: string,
+  developerToken: string,
+  mccId: string
+) {
+  const query = `
+    SELECT 
+      customer_client.id,
+      customer_client.descriptive_name,
+      customer_client.currency_code,
+      customer_client.time_zone,
+      customer_client.manager,
+      customer_client.test_account,
+      customer_client.status,
+      customer_client.level
+    FROM customer_client
+    ORDER BY customer_client.level, customer_client.descriptive_name
+  `;
+
+  const response = await fetch(
+    `https://googleads.googleapis.com/${API_VERSION}/customers/${mccId}/googleAds:search`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': developerToken,
+        'Content-Type': 'application/json',
+        'login-customer-id': mccId,
+      },
+      body: JSON.stringify({ query }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Google Ads API error:', errorText.substring(0, 500));
+    throw new Error(`Google Ads API error: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,7 +92,7 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { mssAccountId } = await req.json();
+    const { mssAccountId, forceRefresh = false } = await req.json();
 
     if (!mssAccountId) {
       throw new Error('MSS Account ID is required');
@@ -71,52 +113,60 @@ serve(async (req) => {
       throw new Error('Google Ads не підключений');
     }
 
-    // Get OAuth credentials
+    // ========== CHECK CACHE FIRST ==========
+    if (!forceRefresh) {
+      const { data: cache } = await supabase
+        .from('mcc_structure_cache')
+        .select('*')
+        .eq('mss_account_id', mssAccountId)
+        .single();
+
+      if (cache && new Date(cache.expires_at) > new Date()) {
+        console.log('📦 Returning from cache');
+        
+        // Get our accounts
+        const { data: ourAccounts } = await supabase
+          .from('google_ads_accounts')
+          .select('*')
+          .eq('mss_account_id', mssAccountId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            fromCache: true,
+            cachedAt: cache.cached_at,
+            mss: {
+              id: mssAccount.id,
+              name: mssAccount.name,
+              mcc_number: mssAccount.mcc_number
+            },
+            folders: cache.folders || [],
+            accounts: cache.direct_accounts || [],
+            summary: {
+              total: cache.total_accounts || 0,
+              createdByUs: (ourAccounts || []).length,
+              external: (cache.total_accounts || 0) - (ourAccounts || []).length,
+              folders: cache.total_folders || 0
+            },
+            totals: { clicks: 0, impressions: 0, cost: 0, conversions: 0 }
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          }
+        );
+      }
+    }
+
+    // ========== FETCH FROM API ==========
+    console.log('🔄 Fetching fresh data from Google Ads API');
+    
     const clientId = mssAccount.google_client_id || DEFAULT_CLIENT_ID;
     const clientSecret = mssAccount.google_client_secret || DEFAULT_CLIENT_SECRET;
-    
-    // Get access token
     const accessToken = await getAccessToken(mssAccount.google_refresh_token, clientId, clientSecret);
     const mccId = mssAccount.mcc_number.replace(/-/g, '');
 
-    // Fetch all client accounts
-    const query = `
-      SELECT 
-        customer_client.id,
-        customer_client.descriptive_name,
-        customer_client.currency_code,
-        customer_client.time_zone,
-        customer_client.manager,
-        customer_client.test_account,
-        customer_client.status,
-        customer_client.level
-      FROM customer_client
-      ORDER BY customer_client.level, customer_client.descriptive_name
-    `;
-
-    console.log('📋 Fetching accounts from MCC:', mccId);
-
-    const response = await fetch(
-      `https://googleads.googleapis.com/${API_VERSION}/customers/${mccId}/googleAds:search`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': mssAccount.developer_token,
-          'Content-Type': 'application/json',
-          'login-customer-id': mccId,
-        },
-        body: JSON.stringify({ query }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google Ads API error:', errorText.substring(0, 500));
-      throw new Error(`Google Ads API error: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await fetchFromGoogleAds(accessToken, mssAccount.developer_token, mccId);
     
     const allClients = (data.results || []).map((result: any) => {
       const client = result.customerClient;
@@ -132,11 +182,11 @@ serve(async (req) => {
       };
     });
 
-    // Separate managers and accounts
+    // Separate managers (Sub-MCCs) and regular accounts
     const managers = allClients.filter((c: any) => c.isManager && c.id !== mccId);
-    const googleAccounts = allClients.filter((c: any) => !c.isManager);
+    const regularAccounts = allClients.filter((c: any) => !c.isManager);
 
-    console.log(`✅ Found ${managers.length} managers, ${googleAccounts.length} accounts`);
+    console.log(`✅ Found ${managers.length} Sub-MCCs, ${regularAccounts.length} accounts`);
 
     // Get accounts created by our service
     const { data: ourAccounts } = await supabase
@@ -144,54 +194,54 @@ serve(async (req) => {
       .select('*')
       .eq('mss_account_id', mssAccountId);
 
-    // Get invitations
-    const { data: invitations } = await supabase
-      .from('account_invitations')
-      .select('*')
-      .eq('mss_account_id', mssAccountId);
-
-    // Merge data
     const ourAccountIds = new Set((ourAccounts || []).map(a => a.customer_id.replace(/-/g, '')));
-    
-    const mergedAccounts = googleAccounts.map((acc: any) => {
-      const isOurs = ourAccountIds.has(acc.id);
-      const ourData = isOurs 
-        ? ourAccounts?.find(a => a.customer_id.replace(/-/g, '') === acc.id)
-        : null;
 
-      return {
-        ...acc,
-        createdByUs: isOurs,
-        ourData,
-        metrics: { clicks: 0, impressions: 0, cost: 0, ctr: 0, conversions: 0, avgCpc: 0 }
-      };
-    });
+    // Mark accounts created by us
+    const processedAccounts = regularAccounts.map((acc: any) => ({
+      ...acc,
+      createdByUs: ourAccountIds.has(acc.id),
+    }));
 
-    // Calculate totals
-    const totals = {
-      clicks: 0,
-      impressions: 0,
-      cost: 0,
-      conversions: 0,
-    };
+    // Build folders with account counts
+    const folders = managers.map((m: any) => ({
+      ...m,
+      accounts: [],
+      accountCount: 0 // Will be filled by separate lazy-load
+    }));
+
+    // ========== SAVE TO CACHE ==========
+    try {
+      await supabase.rpc('update_mcc_cache', {
+        p_mss_account_id: mssAccountId,
+        p_folders: folders,
+        p_direct_accounts: processedAccounts,
+        p_total_accounts: regularAccounts.length,
+        p_total_folders: managers.length
+      });
+      console.log('💾 Cache updated');
+    } catch (cacheError) {
+      console.error('Cache update failed:', cacheError);
+      // Continue anyway - cache is optional
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
+        fromCache: false,
         mss: {
           id: mssAccount.id,
           name: mssAccount.name,
           mcc_number: mssAccount.mcc_number
         },
-        folders: managers.map((m: any) => ({ ...m, accounts: [], accountCount: 0 })),
-        accounts: mergedAccounts,
+        folders,
+        accounts: processedAccounts,
         summary: {
-          total: googleAccounts.length,
+          total: regularAccounts.length,
           createdByUs: ourAccountIds.size,
-          external: googleAccounts.length - ourAccountIds.size,
+          external: regularAccounts.length - ourAccountIds.size,
           folders: managers.length
         },
-        totals
+        totals: { clicks: 0, impressions: 0, cost: 0, conversions: 0 }
       }),
       {
         status: 200,

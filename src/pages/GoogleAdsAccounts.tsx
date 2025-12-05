@@ -113,7 +113,13 @@ const GoogleAdsAccounts = () => {
   const isLatestLoad = (loadId: number) => loadRequestRef.current === loadId;
   const isActiveLoad = (loadId: number, mssId: string) => isLatestLoad(loadId) && selectedMssRef.current === mssId;
 
-  const toggleFolder = (folderId: string) => {
+  // Folder accounts cache (lazy loaded)
+  const [folderAccounts, setFolderAccounts] = useState<Record<string, any[]>>({});
+  const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
+
+  const toggleFolder = async (folderId: string) => {
+    const isExpanding = !expandedFolders.has(folderId);
+    
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
       if (newSet.has(folderId)) {
@@ -123,6 +129,37 @@ const GoogleAdsAccounts = () => {
       }
       return newSet;
     });
+
+    // Lazy load folder accounts if expanding and not already loaded
+    if (isExpanding && !folderAccounts[folderId] && selectedMSS) {
+      setLoadingFolders(prev => new Set(prev).add(folderId));
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('get-folder-accounts', {
+          body: { mssAccountId: selectedMSS, folderId }
+        });
+        
+        if (data?.success) {
+          setFolderAccounts(prev => ({
+            ...prev,
+            [folderId]: data.accounts || []
+          }));
+          
+          // Update folder count in folders state
+          setFolders(prev => prev.map(f => 
+            f.id === folderId ? { ...f, accountCount: data.count, accounts: data.accounts } : f
+          ));
+        }
+      } catch (e) {
+        console.error('Failed to load folder accounts:', e);
+      } finally {
+        setLoadingFolders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(folderId);
+          return newSet;
+        });
+      }
+    }
   };
 
   // Load metrics from database cache
@@ -738,7 +775,8 @@ const GoogleAdsAccounts = () => {
                         <div className="space-y-2">
                           {folders.map((folder) => {
                             const isExpanded = expandedFolders.has(folder.id);
-                            const folderAccounts = folder.accounts || [];
+                            const isLoading = loadingFolders.has(folder.id);
+                            const accounts = folderAccounts[folder.id] || folder.accounts || [];
                             
                             return (
                               <div key={folder.id}>
@@ -746,7 +784,11 @@ const GoogleAdsAccounts = () => {
                                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/30 cursor-pointer transition-all group"
                                   onClick={() => toggleFolder(folder.id)}
                                 >
-                                  <ChevronRight className={`h-4 w-4 text-yellow-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                  {isLoading ? (
+                                    <RefreshCw className="h-4 w-4 text-yellow-400 animate-spin" />
+                                  ) : (
+                                    <ChevronRight className={`h-4 w-4 text-yellow-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                  )}
                                   <div className="h-8 w-8 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
                                     {isExpanded ? (
                                       <FolderOpen className="h-4 w-4 text-yellow-400" />
@@ -764,7 +806,7 @@ const GoogleAdsAccounts = () => {
                                     <span className="text-xs text-muted-foreground font-mono">{formatCustomerId(folder.id)}</span>
                                   </div>
                                   <Badge variant="outline" className="text-xs text-muted-foreground shrink-0">
-                                    {folder.accountCount || 0} акк.
+                                    {accounts.length > 0 ? accounts.length : (folder.accountCount || '?')} акк.
                                   </Badge>
                                   <Button
                                     variant="ghost"
@@ -781,9 +823,14 @@ const GoogleAdsAccounts = () => {
                                 
                                 {isExpanded && (
                                   <div className="ml-6 border-l-2 border-yellow-500/30 pl-4 py-2 space-y-1">
-                                    {folderAccounts.length > 0 ? (
+                                    {isLoading ? (
+                                      <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                        <span>Загрузка...</span>
+                                      </div>
+                                    ) : accounts.length > 0 ? (
                                       <>
-                                        {folderAccounts.slice(0, 10).map((account) => (
+                                        {accounts.slice(0, 15).map((account: any) => (
                                           <div 
                                             key={account.id} 
                                             className="flex items-center gap-3 p-2 rounded hover:bg-secondary/20 transition-all group"
@@ -802,15 +849,15 @@ const GoogleAdsAccounts = () => {
                                             </Button>
                                           </div>
                                         ))}
-                                        {folderAccounts.length > 10 && (
+                                        {accounts.length > 15 && (
                                           <p className="text-xs text-muted-foreground pl-6">
-                                            +{folderAccounts.length - 10} ещё...
+                                            +{accounts.length - 15} ещё...
                                           </p>
                                         )}
                                       </>
                                     ) : (
                                       <p className="text-xs text-muted-foreground pl-2 py-1">
-                                        Пусто
+                                        Нет аккаунтов
                                       </p>
                                     )}
                                   </div>
