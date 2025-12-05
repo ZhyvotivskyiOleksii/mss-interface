@@ -102,6 +102,21 @@ const GoogleAdsAccounts = () => {
   const [metricsLoaded, setMetricsLoaded] = useState(false);
   const [mssMetricsCache, setMssMetricsCache] = useState<MSSMetricsCache>({});
   const [loadingMssIds, setLoadingMssIds] = useState<Set<string>>(new Set());
+  
+  // Budget data
+  const [budgetData, setBudgetData] = useState({
+    totalBudget: 0,
+    totalSpent: 0,
+    totalRemaining: 0,
+    percentUsed: 0,
+    lastUpdated: null as string | null,
+  });
+  const [loadingBudgets, setLoadingBudgets] = useState(false);
+  
+  // Auto-refresh timer (30 min = 1800 seconds)
+  const [timeToRefresh, setTimeToRefresh] = useState(1800);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Track the latest MSS load to avoid stale updates when switching tabs quickly
   const loadRequestRef = useRef(0);
   const selectedMssRef = useRef<string>("");
@@ -112,6 +127,60 @@ const GoogleAdsAccounts = () => {
 
   const isLatestLoad = (loadId: number) => loadRequestRef.current === loadId;
   const isActiveLoad = (loadId: number, mssId: string) => isLatestLoad(loadId) && selectedMssRef.current === mssId;
+
+  // Load budgets
+  const loadBudgets = async (mssId: string) => {
+    setLoadingBudgets(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-mcc-budgets', {
+        body: { mssAccountId: mssId }
+      });
+      
+      if (data?.success) {
+        setBudgetData({
+          totalBudget: data.totalBudget || 0,
+          totalSpent: data.totalSpent || 0,
+          totalRemaining: data.totalRemaining || 0,
+          percentUsed: data.percentUsed || 0,
+          lastUpdated: data.lastUpdated || new Date().toISOString(),
+        });
+        setTimeToRefresh(1800); // Reset timer
+        toast.success('Бюджети оновлено!');
+      }
+    } catch (e) {
+      console.error('Failed to load budgets:', e);
+    } finally {
+      setLoadingBudgets(false);
+    }
+  };
+
+  // Auto-refresh timer
+  useEffect(() => {
+    if (selectedMSS) {
+      // Start countdown
+      timerRef.current = setInterval(() => {
+        setTimeToRefresh(prev => {
+          if (prev <= 1) {
+            // Auto-refresh
+            loadBudgets(selectedMSS);
+            return 1800;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
+    }
+  }, [selectedMSS]);
+
+  // Format time for display
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Folder accounts cache (lazy loaded)
   const [folderAccounts, setFolderAccounts] = useState<Record<string, any[]>>({});
@@ -625,7 +694,7 @@ const GoogleAdsAccounts = () => {
                   </CardContent>
                 </Card>
 
-                {/* Stats - Metrics with Gradients */}
+                {/* Stats - Budget Cards with Gradients */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                   {/* Аккаунтов */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/20 via-emerald-600/10 to-transparent border border-emerald-500/20 p-4 group hover:border-emerald-500/40 transition-all">
@@ -641,35 +710,35 @@ const GoogleAdsAccounts = () => {
                     </div>
                   </div>
 
-                  {/* Кликов */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/20 via-blue-600/10 to-transparent border border-blue-500/20 p-4 group hover:border-blue-500/40 transition-all">
+                  {/* Бюджет */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/20 via-blue-600/10 to-transparent border border-blue-500/20 p-4 group hover:border-blue-500/40 transition-all cursor-pointer" onClick={() => loadBudgets(mss.id)}>
                     <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
                     <div className="relative flex items-center gap-3">
                       <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                        <Users className="h-5 w-5 text-white" />
+                        {loadingBudgets ? <RefreshCw className="h-5 w-5 text-white animate-spin" /> : <DollarSign className="h-5 w-5 text-white" />}
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-blue-400">{totals.clicks.toLocaleString()}</p>
-                        <p className="text-xs text-blue-300/60">Кликов</p>
+                        <p className="text-2xl font-bold text-blue-400">${budgetData.totalBudget.toLocaleString()}</p>
+                        <p className="text-xs text-blue-300/60">Бюджет</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Показов */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/20 via-violet-600/10 to-transparent border border-violet-500/20 p-4 group hover:border-violet-500/40 transition-all">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-violet-500/20 transition-all" />
+                  {/* Витрачено */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-rose-500/20 via-rose-600/10 to-transparent border border-rose-500/20 p-4 group hover:border-rose-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all" />
                     <div className="relative flex items-center gap-3">
-                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-                        <Filter className="h-5 w-5 text-white" />
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/25">
+                        <DollarSign className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-violet-400">{totals.impressions.toLocaleString()}</p>
-                        <p className="text-xs text-violet-300/60">Показов</p>
+                        <p className="text-2xl font-bold text-rose-400">${budgetData.totalSpent.toLocaleString()}</p>
+                        <p className="text-xs text-rose-300/60">Витрачено</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Расход */}
+                  {/* Залишок */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-green-500/20 via-green-600/10 to-transparent border border-green-500/20 p-4 group hover:border-green-500/40 transition-all">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all" />
                     <div className="relative flex items-center gap-3">
@@ -677,22 +746,22 @@ const GoogleAdsAccounts = () => {
                         <DollarSign className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-green-400">${totals.cost.toLocaleString()}</p>
-                        <p className="text-xs text-green-300/60">Расход</p>
+                        <p className="text-2xl font-bold text-green-400">${budgetData.totalRemaining.toLocaleString()}</p>
+                        <p className="text-xs text-green-300/60">Залишок</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Конверсий */}
+                  {/* % Використано */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-500/20 via-orange-600/10 to-transparent border border-orange-500/20 p-4 group hover:border-orange-500/40 transition-all">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all" />
                     <div className="relative flex items-center gap-3">
                       <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
-                        <Sparkles className="h-5 w-5 text-white" />
+                        <Filter className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-orange-400">{totals.conversions.toLocaleString()}</p>
-                        <p className="text-xs text-orange-300/60">Конверсий</p>
+                        <p className="text-2xl font-bold text-orange-400">{budgetData.percentUsed}%</p>
+                        <p className="text-xs text-orange-300/60">Використано</p>
                       </div>
                     </div>
                   </div>
@@ -710,6 +779,20 @@ const GoogleAdsAccounts = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Timer */}
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {budgetData.lastUpdated 
+                      ? `Оновлено: ${new Date(budgetData.lastUpdated).toLocaleTimeString('uk-UA')}`
+                      : 'Клікни на "Бюджет" для завантаження'
+                    }
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Авто-оновлення: {formatTime(timeToRefresh)}
+                  </span>
                 </div>
 
                 {/* Hierarchy Tree View */}
