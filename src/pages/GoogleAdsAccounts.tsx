@@ -691,67 +691,52 @@ const GoogleAdsAccounts = () => {
                         </CardContent>
                       </Card>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         {googleAccounts.map((account, index) => {
-                          // Get invitation for this account by index
                           const accountInvitation = invitations[index];
                           
                           return (
-                            <Card key={account.id} className="glass border-border/50 hover:border-primary/30 transition-all">
+                            <Card key={account.id} className="glass border-border/50 hover:border-green-500/30 transition-all">
                               <CardContent className="p-4">
-                                <div className="flex items-center gap-4">
-                                  {/* Icon */}
-                                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
-                                    <Sparkles className="h-6 w-6 text-green-400" />
+                                {/* Header */}
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/20 flex items-center justify-center">
+                                    <Sparkles className="h-4 w-4 text-green-400" />
                                   </div>
-
-                                  {/* Info */}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-mono font-bold text-lg">
-                                        {formatCustomerId(account.customer_id)}
-                                      </span>
-                                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
-                                        Создан
-                                      </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                      <span className="flex items-center gap-1">
-                                        <DollarSign className="h-3.5 w-3.5" />
-                                        {account.currency_code}
-                                      </span>
-                                      <span className="flex items-center gap-1">
-                                        <Clock className="h-3.5 w-3.5" />
-                                        {account.timezone}
-                                      </span>
-                                      <span className="flex items-center gap-1">
-                                        <Calendar className="h-3.5 w-3.5" />
-                                        {new Date(account.created_at).toLocaleDateString('ru-RU')}
-                                      </span>
-                                    </div>
-                                    {/* Invitation inline */}
-                                    {accountInvitation && (
-                                      <div className="flex items-center gap-2 mt-2">
-                                        <Mail className="h-3.5 w-3.5 text-blue-400" />
-                                        <span className="text-sm text-blue-400">{accountInvitation.email}</span>
-                                        <Badge variant="outline" className="text-xs capitalize">
-                                          {accountInvitation.access_level}
-                                        </Badge>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Action */}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 shrink-0"
-                                    onClick={() => window.open(`https://ads.google.com/aw/overview?ocid=${account.customer_id.replace(/-/g, '')}`, '_blank')}
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                    Открыть
-                                  </Button>
+                                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+                                    Создан
+                                  </Badge>
                                 </div>
+                                
+                                {/* Account ID */}
+                                <div className="font-mono font-bold text-lg mb-2">
+                                  {formatCustomerId(account.customer_id)}
+                                </div>
+                                
+                                {/* Details */}
+                                <div className="space-y-1 text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-2">
+                                    <DollarSign className="h-3.5 w-3.5" />
+                                    <span>{account.currency_code}</span>
+                                    <Clock className="h-3.5 w-3.5 ml-2" />
+                                    <span>{account.timezone}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>{new Date(account.created_at).toLocaleDateString('ru-RU')}</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Invitation */}
+                                {accountInvitation && (
+                                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/30">
+                                    <Mail className="h-3.5 w-3.5 text-blue-400" />
+                                    <span className="text-xs text-blue-400 truncate">{accountInvitation.email}</span>
+                                    <Badge variant="outline" className="text-[10px] capitalize ml-auto">
+                                      {accountInvitation.access_level}
+                                    </Badge>
+                                  </div>
+                                )}
                               </CardContent>
                             </Card>
                           );
