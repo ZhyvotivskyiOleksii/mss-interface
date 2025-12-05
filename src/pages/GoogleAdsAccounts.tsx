@@ -805,8 +805,11 @@ const GoogleAdsAccounts = () => {
                                     </div>
                                     <span className="text-xs text-muted-foreground font-mono">{formatCustomerId(folder.id)}</span>
                                   </div>
-                                  <Badge variant="outline" className="text-xs text-muted-foreground shrink-0">
-                                    {accounts.length > 0 ? accounts.length : (folder.accountCount || '?')} акк.
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-xs shrink-0 ${accounts.length > 0 ? 'text-green-400 border-green-500/30' : 'text-muted-foreground'}`}
+                                  >
+                                    {accounts.length > 0 ? `${accounts.length} акк.` : 'клік →'}
                                   </Badge>
                                   <Button
                                     variant="ghost"
