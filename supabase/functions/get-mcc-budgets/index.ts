@@ -58,132 +58,90 @@ serve(async (req) => {
 
     console.log('💰 Fetching budgets from MCC:', mccId);
 
-    // Get all customer IDs - simple query without WHERE
-    const customerQuery = `
+    // Get account budgets directly from MCC
+    const budgetQuery = `
       SELECT 
-        customer_client.id,
-        customer_client.manager
-      FROM customer_client
+        account_budget.status,
+        account_budget.approved_spending_limit_micros,
+        account_budget.adjusted_spending_limit_micros,
+        account_budget.amount_micros
+      FROM account_budget
+      WHERE account_budget.status = 'APPROVED'
     `;
 
-    const customerResponse = await fetch(
-      `https://googleads.googleapis.com/${API_VERSION}/customers/${mccId}/googleAds:search`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': mssAccount.developer_token,
-          'Content-Type': 'application/json',
-          'login-customer-id': mccId,
-        },
-        body: JSON.stringify({ query: customerQuery, pageSize: 10000 }),
-      }
-    );
-
-    if (!customerResponse.ok) {
-      const errText = await customerResponse.text();
-      console.error('Customer query error:', errText.substring(0, 300));
-      throw new Error(`Failed to get customers: ${customerResponse.status}`);
-    }
-
-    const customerData = await customerResponse.json();
-    // Filter out managers (Sub-MCCs)
-    const customerIds = (customerData.results || [])
-      .filter((r: any) => !r.customerClient.manager)
-      .map((r: any) => r.customerClient.id);
-    
-    console.log(`📊 Found ${customerIds.length} accounts, fetching budgets...`);
-
-    // Fetch budgets for each account (batch by chunks)
     let totalBudget = 0;
     let totalSpent = 0;
-    let totalRemaining = 0;
     let accountsWithBudget = 0;
 
-    // Process in chunks of 50 to avoid rate limiting
-    const chunkSize = 50;
-    const chunks = [];
-    for (let i = 0; i < customerIds.length; i += chunkSize) {
-      chunks.push(customerIds.slice(i, i + chunkSize));
-    }
-
-    for (const chunk of chunks.slice(0, 10)) { // Limit to first 500 accounts for now
-      const budgetPromises = chunk.map(async (customerId: string) => {
-        try {
-          const budgetQuery = `
-            SELECT 
-              account_budget.approved_spending_limit_micros,
-              account_budget.amount_micros,
-              account_budget.adjusted_spending_limit_micros
-            FROM account_budget
-            WHERE account_budget.status = 'APPROVED'
-          `;
-
-          const response = await fetch(
-            `https://googleads.googleapis.com/${API_VERSION}/customers/${customerId}/googleAds:search`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'developer-token': mssAccount.developer_token,
-                'Content-Type': 'application/json',
-                'login-customer-id': mccId,
-              },
-              body: JSON.stringify({ query: budgetQuery }),
-            }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results && data.results.length > 0) {
-              const budget = data.results[0].accountBudget;
-              const limitMicros = budget.approvedSpendingLimitMicros || budget.adjustedSpendingLimitMicros || 0;
-              const spentMicros = budget.amountMicros || 0;
-              
-              if (limitMicros > 0) {
-                totalBudget += Number(limitMicros) / 1000000;
-                totalSpent += Number(spentMicros) / 1000000;
-                accountsWithBudget++;
-              }
-            }
-          }
-        } catch (e) {
-          // Skip failed accounts
+    // Try to get budgets from the MCC itself
+    try {
+      const response = await fetch(
+        `https://googleads.googleapis.com/${API_VERSION}/customers/${mccId}/googleAds:search`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'developer-token': mssAccount.developer_token,
+            'Content-Type': 'application/json',
+            'login-customer-id': mccId,
+          },
+          body: JSON.stringify({ query: budgetQuery }),
         }
-      });
+      );
 
-      await Promise.all(budgetPromises);
-      
-      // Small delay between chunks
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Budget results:', JSON.stringify(data).substring(0, 500));
+        
+        for (const result of (data.results || [])) {
+          const budget = result.accountBudget;
+          const limitMicros = budget.approvedSpendingLimitMicros || budget.adjustedSpendingLimitMicros || '0';
+          const spentMicros = budget.amountMicros || '0';
+          
+          // Handle "infinite" budgets
+          if (limitMicros !== '-1' && limitMicros !== '0') {
+            totalBudget += Number(limitMicros) / 1000000;
+            totalSpent += Number(spentMicros) / 1000000;
+            accountsWithBudget++;
+          }
+        }
+      } else {
+        const errText = await response.text();
+        console.log('Budget query returned:', response.status, errText.substring(0, 200));
+      }
+    } catch (e: any) {
+      console.log('Budget fetch error:', e.message);
     }
 
-    totalRemaining = totalBudget - totalSpent;
+    const totalRemaining = Math.max(0, totalBudget - totalSpent);
     const percentUsed = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
     console.log(`✅ Budgets: $${totalBudget.toFixed(2)} total, $${totalSpent.toFixed(2)} spent, ${accountsWithBudget} accounts`);
 
-    // Cache the result
     const cacheData = {
-      totalBudget,
-      totalSpent,
-      totalRemaining,
+      totalBudget: Math.round(totalBudget * 100) / 100,
+      totalSpent: Math.round(totalSpent * 100) / 100,
+      totalRemaining: Math.round(totalRemaining * 100) / 100,
       percentUsed,
       accountsWithBudget,
       lastUpdated: new Date().toISOString(),
     };
 
     // Update cache in database
-    await supabase
-      .from('mss_metrics_cache')
-      .upsert({
-        mss_account_id: mssAccountId,
-        total_budget: totalBudget,
-        total_spent: totalSpent,
-        total_remaining: totalRemaining,
-        percent_used: percentUsed,
-        last_updated_at: new Date().toISOString(),
-      }, { onConflict: 'mss_account_id' });
+    try {
+      await supabase
+        .from('mss_metrics_cache')
+        .upsert({
+          mss_account_id: mssAccountId,
+          total_budget: cacheData.totalBudget,
+          total_spent: cacheData.totalSpent,
+          total_remaining: cacheData.totalRemaining,
+          percent_used: cacheData.percentUsed,
+          last_updated_at: cacheData.lastUpdated,
+        }, { onConflict: 'mss_account_id' });
+    } catch (e) {
+      console.log('Cache update skipped');
+    }
 
     return new Response(
       JSON.stringify({
@@ -201,4 +159,3 @@ serve(async (req) => {
     );
   }
 });
-
