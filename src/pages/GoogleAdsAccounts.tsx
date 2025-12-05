@@ -625,86 +625,91 @@ const GoogleAdsAccounts = () => {
                   </CardContent>
                 </Card>
 
-                {/* Stats - Metrics */}
+                {/* Stats - Metrics with Gradients */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <Card className="glass border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Building2 className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold">{summary.total || googleAccounts.length}</p>
-                          <p className="text-xs text-muted-foreground">Аккаунтов</p>
-                        </div>
+                  {/* Аккаунтов */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/20 via-emerald-600/10 to-transparent border border-emerald-500/20 p-4 group hover:border-emerald-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                        <Building2 className="h-5 w-5 text-white" />
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="glass border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold">{totals.clicks.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Кликов</p>
-                        </div>
+                      <div>
+                        <p className="text-2xl font-bold text-emerald-400">{summary.total || googleAccounts.length}</p>
+                        <p className="text-xs text-emerald-300/60">Аккаунтов</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="glass border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <Filter className="h-5 w-5 text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold">{totals.impressions.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Показов</p>
-                        </div>
+                    </div>
+                  </div>
+
+                  {/* Кликов */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/20 via-blue-600/10 to-transparent border border-blue-500/20 p-4 group hover:border-blue-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                        <Users className="h-5 w-5 text-white" />
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="glass border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                          <DollarSign className="h-5 w-5 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold">${totals.cost.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Расход</p>
-                        </div>
+                      <div>
+                        <p className="text-2xl font-bold text-blue-400">{totals.clicks.toLocaleString()}</p>
+                        <p className="text-xs text-blue-300/60">Кликов</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="glass border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                          <Sparkles className="h-5 w-5 text-orange-400" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold">{totals.conversions.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Конверсий</p>
-                        </div>
+                    </div>
+                  </div>
+
+                  {/* Показов */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/20 via-violet-600/10 to-transparent border border-violet-500/20 p-4 group hover:border-violet-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-violet-500/10 rounded-full blur-2xl group-hover:bg-violet-500/20 transition-all" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                        <Filter className="h-5 w-5 text-white" />
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="glass border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                          <FolderOpen className="h-5 w-5 text-yellow-400" />
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold">{summary.folders || folders.length}</p>
-                          <p className="text-xs text-muted-foreground">Суб МСС</p>
-                        </div>
+                      <div>
+                        <p className="text-2xl font-bold text-violet-400">{totals.impressions.toLocaleString()}</p>
+                        <p className="text-xs text-violet-300/60">Показов</p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
+
+                  {/* Расход */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-green-500/20 via-green-600/10 to-transparent border border-green-500/20 p-4 group hover:border-green-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/25">
+                        <DollarSign className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-green-400">${totals.cost.toLocaleString()}</p>
+                        <p className="text-xs text-green-300/60">Расход</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Конверсий */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-500/20 via-orange-600/10 to-transparent border border-orange-500/20 p-4 group hover:border-orange-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
+                        <Sparkles className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-orange-400">{totals.conversions.toLocaleString()}</p>
+                        <p className="text-xs text-orange-300/60">Конверсий</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Суб МСС */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-500/20 via-amber-600/10 to-transparent border border-amber-500/20 p-4 group hover:border-amber-500/40 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                        <FolderOpen className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-amber-400">{summary.folders || folders.length}</p>
+                        <p className="text-xs text-amber-300/60">Суб МСС</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Hierarchy Tree View */}
