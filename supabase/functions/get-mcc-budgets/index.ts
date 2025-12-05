@@ -58,11 +58,12 @@ serve(async (req) => {
 
     console.log('💰 Fetching budgets from MCC:', mccId);
 
-    // Get all customer IDs first
+    // Get all customer IDs - simple query without WHERE
     const customerQuery = `
-      SELECT customer_client.id
+      SELECT 
+        customer_client.id,
+        customer_client.manager
       FROM customer_client
-      WHERE customer_client.manager = false
     `;
 
     const customerResponse = await fetch(
@@ -80,11 +81,16 @@ serve(async (req) => {
     );
 
     if (!customerResponse.ok) {
+      const errText = await customerResponse.text();
+      console.error('Customer query error:', errText.substring(0, 300));
       throw new Error(`Failed to get customers: ${customerResponse.status}`);
     }
 
     const customerData = await customerResponse.json();
-    const customerIds = (customerData.results || []).map((r: any) => r.customerClient.id);
+    // Filter out managers (Sub-MCCs)
+    const customerIds = (customerData.results || [])
+      .filter((r: any) => !r.customerClient.manager)
+      .map((r: any) => r.customerClient.id);
     
     console.log(`📊 Found ${customerIds.length} accounts, fetching budgets...`);
 
