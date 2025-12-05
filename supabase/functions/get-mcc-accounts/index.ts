@@ -35,7 +35,7 @@ async function getAccessToken(
   return data.access_token;
 }
 
-// Fetch accounts from Google Ads API
+// Fetch ALL accounts from Google Ads API with pagination
 async function fetchFromGoogleAds(
   accessToken: string,
   developerToken: string,
@@ -55,27 +55,56 @@ async function fetchFromGoogleAds(
     ORDER BY customer_client.level, customer_client.descriptive_name
   `;
 
-  const response = await fetch(
-    `https://googleads.googleapis.com/${API_VERSION}/customers/${mccId}/googleAds:search`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'developer-token': developerToken,
-        'Content-Type': 'application/json',
-        'login-customer-id': mccId,
-      },
-      body: JSON.stringify({ query }),
+  let allResults: any[] = [];
+  let pageToken: string | null = null;
+  let pageCount = 0;
+  const maxPages = 20; // Safety limit
+
+  do {
+    const body: any = { 
+      query,
+      pageSize: 10000  // Maximum allowed
+    };
+    if (pageToken) {
+      body.pageToken = pageToken;
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Google Ads API error:', errorText.substring(0, 500));
-    throw new Error(`Google Ads API error: ${response.status}`);
-  }
+    const response = await fetch(
+      `https://googleads.googleapis.com/${API_VERSION}/customers/${mccId}/googleAds:search`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': developerToken,
+          'Content-Type': 'application/json',
+          'login-customer-id': mccId,
+        },
+        body: JSON.stringify(body),
+      }
+    );
 
-  return await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Google Ads API error:', errorText.substring(0, 500));
+      throw new Error(`Google Ads API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.results) {
+      allResults = allResults.concat(data.results);
+    }
+    
+    pageToken = data.nextPageToken || null;
+    pageCount++;
+    
+    console.log(`📄 Page ${pageCount}: ${data.results?.length || 0} results, total: ${allResults.length}`);
+    
+  } while (pageToken && pageCount < maxPages);
+
+  console.log(`✅ Total fetched: ${allResults.length} accounts`);
+  
+  return { results: allResults };
 }
 
 serve(async (req) => {
