@@ -489,8 +489,8 @@ const GoogleAdsAccounts = () => {
           <div className="flex gap-2">
             <Button 
               onClick={syncAllMSSMetrics} 
-              variant="default" 
-              className="gap-2"
+              variant="outline" 
+              className="gap-2 border-emerald-600/50 text-emerald-400 hover:bg-emerald-600/20 hover:text-emerald-300 hover:border-emerald-500/70"
               disabled={loadingMetrics}
             >
               {loadingMetrics ? (
