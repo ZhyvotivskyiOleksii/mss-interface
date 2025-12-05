@@ -113,8 +113,17 @@ const GoogleAdsAccounts = () => {
   });
   const [loadingBudgets, setLoadingBudgets] = useState(false);
   
-  // Auto-refresh timer (30 min = 1800 seconds)
-  const [timeToRefresh, setTimeToRefresh] = useState(1800);
+  // Auto-refresh timer (30 min = 1800 seconds) - persisted in localStorage
+  const getInitialTime = () => {
+    const saved = localStorage.getItem('lastRefreshTime');
+    if (saved) {
+      const elapsed = Math.floor((Date.now() - parseInt(saved)) / 1000);
+      const remaining = 1800 - elapsed;
+      return remaining > 0 ? remaining : 1800;
+    }
+    return 1800;
+  };
+  const [timeToRefresh, setTimeToRefresh] = useState(getInitialTime);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Track the latest MSS load to avoid stale updates when switching tabs quickly
@@ -145,6 +154,7 @@ const GoogleAdsAccounts = () => {
           lastUpdated: data.lastUpdated || new Date().toISOString(),
         });
         setTimeToRefresh(1800); // Reset timer
+        localStorage.setItem('lastRefreshTime', Date.now().toString());
         toast.success('Бюджети оновлено!');
       }
     } catch (e) {
@@ -164,6 +174,7 @@ const GoogleAdsAccounts = () => {
             // Auto-refresh ALL data
             loadMSSData(selectedMSS);
             loadBudgets(selectedMSS);
+            localStorage.setItem('lastRefreshTime', Date.now().toString());
             return 1800;
           }
           return prev - 1;
