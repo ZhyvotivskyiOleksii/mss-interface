@@ -532,19 +532,19 @@ const GoogleAdsAccounts = () => {
                   <TabsTrigger 
                     key={mss.id} 
                     value={mss.id}
-                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white flex-col items-start gap-1 px-4 py-2 h-auto min-w-[140px]"
+                    className="data-[state=active]:bg-slate-700 data-[state=active]:text-white data-[state=active]:border-green-500/50 border border-transparent flex-col items-start gap-1 px-4 py-2 h-auto min-w-[140px] rounded-lg"
                   >
                     <div className="flex items-center gap-2 w-full">
                       <Building2 className="h-4 w-4" />
                       <span className="font-medium">{mss.name}</span>
                       {mss.google_refresh_token ? (
-                        <span className="h-2 w-2 rounded-full bg-cyan-400 ml-auto"></span>
+                        <span className="h-2 w-2 rounded-full bg-green-400 ml-auto"></span>
                       ) : (
                         <span className="h-2 w-2 rounded-full bg-yellow-400 ml-auto"></span>
                       )}
                     </div>
                     {mss.google_refresh_token && (
-                      <div className="flex items-center gap-2 text-[10px] opacity-90 w-full">
+                      <div className="flex items-center gap-2 text-[10px] text-green-400 w-full">
                         {isLoading ? (
                           <RefreshCw className="h-3 w-3 animate-spin" />
                         ) : cached ? (
@@ -554,7 +554,7 @@ const GoogleAdsAccounts = () => {
                             <span>{cached.totals.clicks.toLocaleString()} кл</span>
                           </>
                         ) : (
-                          <span className="opacity-70">нажмите синхр.</span>
+                          <span className="text-muted-foreground">нажмите синхр.</span>
                         )}
                       </div>
                     )}
