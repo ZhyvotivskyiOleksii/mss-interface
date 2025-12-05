@@ -1,0 +1,8 @@
+[functions.google-ads-auth]
+verify_jwt = false
+
+[functions.google-ads-callback]
+verify_jwt = false
+
+[functions.create-google-ads-accounts]
+verify_jwt = true

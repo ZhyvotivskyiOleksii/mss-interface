@@ -1,0 +1,36 @@
+ssh root@45.83.192.208
+154uPLe8hTgPIO0d5d
+
+
+
+
+rsync -avz \
+  --exclude="node_modules" \
+  --exclude="dist" \
+  --exclude=".git" \
+  /Users/oleksiizhyvotivskyi/Desktop/mss-interface-main/ \
+  root@45.83.192.208:/var/www/mss-interface-main/
+
+
+
+ssh root@45.83.192.208
+2️⃣ Зайти в проект:
+
+bash
+Skopiuj kod
+cd /var/www/mss-interface-main
+3️⃣ Встановити залежності (якщо змінив package.json):
+
+bash
+Skopiuj kod
+npm install
+4️⃣ Зібрати продову версію:
+
+bash
+Skopiuj kod
+npm run build
+5️⃣ Перезапустити pm2:
+
+bash
+Skopiuj kod
+pm2 restart mss-interface

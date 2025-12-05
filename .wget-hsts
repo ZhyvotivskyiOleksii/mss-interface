@@ -1,0 +1,5 @@
+# HSTS 1.0 Known Hosts database for GNU Wget.
+# Edit at your own risk.
+# <hostname>	<port>	<incl. subdomains>	<created>	<max-age>
+curl.se	0	0	1743029054	31536000
+www.cpan.org	0	1	1764827069	31536000
