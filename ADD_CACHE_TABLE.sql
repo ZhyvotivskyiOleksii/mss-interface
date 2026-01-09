@@ -65,3 +65,6 @@ $$ LANGUAGE plpgsql;
 -- Коментар
 COMMENT ON TABLE mcc_structure_cache IS 'Кеш структури MCC для швидкого завантаження';
 
+
+
+

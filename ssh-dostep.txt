@@ -34,3 +34,36 @@ npm run build
 bash
 Skopiuj kod
 pm2 restart mss-interface
+
+
+
+
+
+
+
+
+
+rsync -avz --exclude="node_modules" --exclude="dist" --exclude=".git" /Users/oleksiizhyvotivskyi/Desktop/mss-interface-main/ root@45.83.192.208:/var/www/mss-interface-main/ && ssh root@45.83.192.208 "cd /var/www/mss-interface-main && npm run build && pm2 restart mss-interface"
+
+
+
+
+
+
+
+
+
+# 1. На всякий випадок звільняємо порт 80
+fuser -k 80/tcp || true
+
+# 2. Прибираємо битий PID-файл, який заважає старту
+rm -f /run/nginx.pid
+
+# 3. Перевіряємо конфіг nginx (повинен бути ok)
+nginx -t
+
+# 4. Стартуємо nginx заново
+systemctl restart nginx
+
+# 5. Дивимось, що він реально працює
+systemctl status nginx --no-pager

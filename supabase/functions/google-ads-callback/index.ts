@@ -1,12 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Web Application OAuth credentials (ALMZ)
-const GOOGLE_CLIENT_ID = '572283707219-6a3p5r4v60u6odm6c2os9v17e2n0ij41.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = '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';
+// Default Web Application OAuth credentials (ALMZ)
+const DEFAULT_GOOGLE_CLIENT_ID = '669872731512-e0ukp41pdeg631rj6s7jodd1b4uth8mf.apps.googleusercontent.com';
+const DEFAULT_GOOGLE_CLIENT_SECRET = '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';
 const SUPABASE_URL = 'https://nngnawaxyqzzvbtchhgw.supabase.co';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const APP_URL = Deno.env.get('APP_URL') || 'http://localhost:8080';
+const supabaseAdmin = SUPABASE_SERVICE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  : null;
 
 serve(async (req) => {
   const url = new URL(req.url);
@@ -27,6 +30,30 @@ serve(async (req) => {
   }
 
   try {
+    if (!supabaseAdmin) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not set');
+      throw new Error('Server configuration error');
+    }
+
+    const { data: account, error: accountError } = await supabaseAdmin
+      .from('mss_accounts')
+      .select('google_client_id, google_client_secret')
+      .eq('id', state)
+      .maybeSingle();
+
+    if (accountError) {
+      console.error('Failed to load MSS account credentials:', accountError);
+      throw new Error('Failed to load MSS account credentials');
+    }
+
+    if (!account) {
+      throw new Error('MSS account not found');
+    }
+
+    const hasCustomCredentials = account.google_client_id && account.google_client_secret;
+    const clientId = hasCustomCredentials ? account.google_client_id! : DEFAULT_GOOGLE_CLIENT_ID;
+    const clientSecret = hasCustomCredentials ? account.google_client_secret! : DEFAULT_GOOGLE_CLIENT_SECRET;
+
     const redirectUri = `${SUPABASE_URL}/functions/v1/google-ads-callback`;
 
     console.log('Exchanging code for tokens...');
@@ -36,8 +63,8 @@ serve(async (req) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         code: code,
         grant_type: 'authorization_code',
         redirect_uri: redirectUri,
@@ -61,16 +88,7 @@ serve(async (req) => {
 
     console.log('User info:', userInfo.email);
 
-    // Check if we have service key
-    if (!SUPABASE_SERVICE_KEY) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY not set');
-      throw new Error('Server configuration error');
-    }
-
-    // Save refresh token to database
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('mss_accounts')
       .update({
         google_refresh_token: tokenData.refresh_token,

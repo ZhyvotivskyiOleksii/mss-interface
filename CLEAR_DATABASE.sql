@@ -33,3 +33,6 @@ SELECT 'activity_log', count(*) FROM public.activity_log;
 
 
 
+
+
+

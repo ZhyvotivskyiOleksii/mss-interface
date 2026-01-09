@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { 
-  Search, ExternalLink, Mail, RefreshCw, Calendar, DollarSign, 
-  Clock, Building2, Filter, Sparkles, Users, FolderOpen, FolderClosed, 
-  ChevronRight, ChevronDown
+  ExternalLink, Mail, RefreshCw, 
+  Clock, Building2, Sparkles, FolderOpen, FolderClosed, 
+  ChevronRight
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -137,43 +137,19 @@ const GoogleAdsAccounts = () => {
   const isLatestLoad = (loadId: number) => loadRequestRef.current === loadId;
   const isActiveLoad = (loadId: number, mssId: string) => isLatestLoad(loadId) && selectedMssRef.current === mssId;
 
-  // Load budgets
+  // Load budgets - ЗАГЛУШЕНО (не тратим API запити)
   const loadBudgets = async (mssId: string) => {
-    setLoadingBudgets(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('get-mcc-budgets', {
-        body: { mssAccountId: mssId }
-      });
-      
-      if (data?.success) {
-        setBudgetData({
-          totalBudget: data.totalBudget || 0,
-          totalSpent: data.totalSpent || 0,
-          totalRemaining: data.totalRemaining || 0,
-          percentUsed: data.percentUsed || 0,
-          lastUpdated: data.lastUpdated || new Date().toISOString(),
-        });
-        setTimeToRefresh(1800); // Reset timer
-        localStorage.setItem('lastRefreshTime', Date.now().toString());
-        toast.success('Бюджети оновлено!');
-      }
-    } catch (e) {
-      console.error('Failed to load budgets:', e);
-    } finally {
-      setLoadingBudgets(false);
-    }
+    // DISABLED - пока не нужно
+    console.log('loadBudgets disabled');
   };
 
-  // Auto-refresh timer - refreshes ALL data every 30 min
+  // Auto-refresh timer - ЗАГЛУШЕНО (тільки відлік, без API)
   useEffect(() => {
     if (selectedMSS) {
-      // Start countdown
       timerRef.current = setInterval(() => {
         setTimeToRefresh(prev => {
           if (prev <= 1) {
-            // Auto-refresh ALL data
-            loadMSSData(selectedMSS);
-            loadBudgets(selectedMSS);
+            // API виклики вимкнено
             localStorage.setItem('lastRefreshTime', Date.now().toString());
             return 1800;
           }
@@ -199,8 +175,7 @@ const GoogleAdsAccounts = () => {
   const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
 
   const toggleFolder = async (folderId: string) => {
-    const isExpanding = !expandedFolders.has(folderId);
-    
+    // Просто перемикаємо стан - API виклики ЗАГЛУШЕНО
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
       if (newSet.has(folderId)) {
@@ -210,37 +185,9 @@ const GoogleAdsAccounts = () => {
       }
       return newSet;
     });
-
-    // Lazy load folder accounts if expanding and not already loaded
-    if (isExpanding && !folderAccounts[folderId] && selectedMSS) {
-      setLoadingFolders(prev => new Set(prev).add(folderId));
-      
-      try {
-        const { data, error } = await supabase.functions.invoke('get-folder-accounts', {
-          body: { mssAccountId: selectedMSS, folderId }
-        });
-        
-        if (data?.success) {
-          setFolderAccounts(prev => ({
-            ...prev,
-            [folderId]: data.accounts || []
-          }));
-          
-          // Update folder count in folders state
-          setFolders(prev => prev.map(f => 
-            f.id === folderId ? { ...f, accountCount: data.count, accounts: data.accounts } : f
-          ));
-        }
-      } catch (e) {
-        console.error('Failed to load folder accounts:', e);
-      } finally {
-        setLoadingFolders(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(folderId);
-          return newSet;
-        });
-      }
-    }
+    
+    // API виклики вимкнено - не тратим запити
+    console.log('Folder toggle - API disabled');
   };
 
   // Load metrics from database cache
@@ -275,38 +222,10 @@ const GoogleAdsAccounts = () => {
     }
   };
 
-  // Trigger full sync (fetches ALL accounts from API and saves to DB)
+  // Trigger full sync - ЗАГЛУШЕНО (не тратим API запити)
   const triggerFullSync = async (mssId?: string) => {
-    setLoadingMetrics(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-all-metrics', {
-        body: mssId ? { mssAccountId: mssId } : {}
-      });
-      
-      if (error) {
-        toast.error('Ошибка синхронизации: ' + error.message);
-      } else if (data?.success) {
-        const successResults = data.results?.filter((r: any) => r.success) || [];
-        const failedResults = data.results?.filter((r: any) => !r.success) || [];
-        
-        if (successResults.length > 0) {
-          toast.success(`Синхронизировано! ${successResults.map((r: any) => `${r.mss}: ${r.accounts || 0} акк`).join(', ')}`);
-        }
-        if (failedResults.length > 0) {
-          toast.error(`Ошибки: ${failedResults.map((r: any) => `${r.mss}: ${r.error?.slice(0, 50)}`).join(', ')}`);
-        }
-        
-        await loadMetricsFromDatabase();
-        if (selectedMSS) {
-          await loadMSSData(selectedMSS);
-        }
-      }
-    } catch (e: any) {
-      console.log('Sync failed:', e);
-      toast.error('Ошибка синхронизации');
-    } finally {
-      setLoadingMetrics(false);
-    }
+    console.log('triggerFullSync disabled');
+    toast.info('Синхронізація вимкнена');
   };
 
   useEffect(() => {
@@ -318,20 +237,15 @@ const GoogleAdsAccounts = () => {
     loadMetricsFromDatabase();
   }, []);
 
-  // Auto-sync every 30 minutes (no auto-sync on load - only manual)
-  useEffect(() => {
-    if (mssAccounts.length === 0) return;
-    
-    // Auto-sync every 30 minutes
-    const interval = setInterval(() => {
-      console.log('Auto-syncing all metrics...');
-      triggerFullSync();
-    }, 30 * 60 * 1000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [mssAccounts]);
+  // Auto-sync - ЗАГЛУШЕНО
+  // useEffect(() => {
+  //   if (mssAccounts.length === 0) return;
+  //   const interval = setInterval(() => {
+  //     console.log('Auto-syncing all metrics...');
+  //     triggerFullSync();
+  //   }, 30 * 60 * 1000);
+  //   return () => clearInterval(interval);
+  // }, [mssAccounts]);
 
   // Sync all MSS metrics (full sync to database)
   const syncAllMSSMetrics = async () => {
@@ -498,47 +412,14 @@ const GoogleAdsAccounts = () => {
         
         setMetricsLoaded(true);
         
-        // Папки завантажуємо у фоні (не блокуємо UI)
-        const selectedMssData = mssAccounts.find(m => m.id === mssId);
-        if (selectedMssData?.google_refresh_token) {
-          supabase.functions.invoke('get-mcc-accounts', { body: { mssAccountId: mssId } })
-            .then(({ data: mccData }) => {
-              if (!isActiveLoad(loadId, mssId)) {
-                return;
-              }
-              if (mccData?.success && mccData.folders) {
-                setFolders(mccData.folders);
-                setSummary(prev => ({ ...prev, folders: mccData.folders.length }));
-              }
-            })
-            .catch(() => {});
-        }
+        // API виклики ЗАГЛУШЕНО - не тратим запити
+        // Тільки кількість акаунтів з кешу бази даних
         return;
       }
 
-      // Немає кешу - завантажуємо з API
-      const selectedMssData = mssAccounts.find(m => m.id === mssId);
-      if (selectedMssData?.google_refresh_token) {
-        try {
-          const { data: mccData } = await supabase.functions.invoke('get-mcc-accounts', {
-            body: { mssAccountId: mssId }
-          });
-
-          if (!isActiveLoad(loadId, mssId)) {
-            return;
-          }
-
-          if (mccData?.success) {
-            setMccAccounts(mccData.accounts || []);
-            setFolders(mccData.folders || []);
-            setSummary(mccData.summary || { total: 0, createdByUs: 0, external: 0, folders: 0 });
-            setTotals(mccData.totals || { clicks: 0, impressions: 0, cost: 0, ctr: 0, conversions: 0, avgCpc: 0 });
-            setMetricsLoaded(true);
-          }
-        } catch (e) {
-          console.log('Could not load MCC accounts:', e);
-        }
-      }
+      // Немає кешу - API виклики ЗАГЛУШЕНО
+      // Тільки показуємо дані з локальної бази
+      console.log('API calls disabled - showing only local database data');
     } catch (error: any) {
       console.error('Error loading MSS data:', error);
     } finally {
@@ -611,20 +492,19 @@ const GoogleAdsAccounts = () => {
               <span>Оновлення: {formatTime(timeToRefresh)}</span>
             </div>
             
-            {/* Refresh button */}
+            {/* Refresh button - тільки локальна база */}
             <Button 
               onClick={() => {
                 if (selectedMSS) {
                   loadMSSData(selectedMSS);
-                  loadBudgets(selectedMSS);
                 }
               }} 
               variant="outline" 
               className="gap-2 border-emerald-600/50 text-emerald-400 hover:bg-emerald-600/20 hover:text-emerald-300 hover:border-emerald-500/70"
-              disabled={loadingAccounts || loadingBudgets}
+              disabled={loadingAccounts}
             >
-              <RefreshCw className={`h-4 w-4 ${(loadingAccounts || loadingBudgets) ? 'animate-spin' : ''}`} />
-              Оновити все
+              <RefreshCw className={`h-4 w-4 ${loadingAccounts ? 'animate-spin' : ''}`} />
+              Оновити
             </Button>
           </div>
         </div>
@@ -705,8 +585,8 @@ const GoogleAdsAccounts = () => {
                   </CardContent>
                 </Card>
 
-                {/* Stats - Budget Cards with Gradients */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                {/* Stats - Тільки кількість акаунтів (інше заглушено) */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {/* Аккаунтов */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/20 via-emerald-600/10 to-transparent border border-emerald-500/20 p-4 group hover:border-emerald-500/40 transition-all">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
@@ -716,63 +596,21 @@ const GoogleAdsAccounts = () => {
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-emerald-400">{summary.total || googleAccounts.length}</p>
-                        <p className="text-xs text-emerald-300/60">Аккаунтов</p>
+                        <p className="text-xs text-emerald-300/60">Аккаунтів</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Бюджет */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/20 via-blue-600/10 to-transparent border border-blue-500/20 p-4 group hover:border-blue-500/40 transition-all cursor-pointer" onClick={() => loadBudgets(mss.id)}>
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
-                    <div className="relative flex items-center gap-3">
-                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                        {loadingBudgets ? <RefreshCw className="h-5 w-5 text-white animate-spin" /> : <DollarSign className="h-5 w-5 text-white" />}
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-blue-400">${budgetData.totalBudget.toLocaleString()}</p>
-                        <p className="text-xs text-blue-300/60">Бюджет</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Витрачено */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-rose-500/20 via-rose-600/10 to-transparent border border-rose-500/20 p-4 group hover:border-rose-500/40 transition-all">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all" />
-                    <div className="relative flex items-center gap-3">
-                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/25">
-                        <DollarSign className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-rose-400">${budgetData.totalSpent.toLocaleString()}</p>
-                        <p className="text-xs text-rose-300/60">Витрачено</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Залишок */}
+                  {/* Наші акаунти */}
                   <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-green-500/20 via-green-600/10 to-transparent border border-green-500/20 p-4 group hover:border-green-500/40 transition-all">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all" />
                     <div className="relative flex items-center gap-3">
                       <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/25">
-                        <DollarSign className="h-5 w-5 text-white" />
+                        <Sparkles className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-green-400">${budgetData.totalRemaining.toLocaleString()}</p>
-                        <p className="text-xs text-green-300/60">Залишок</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* % Використано */}
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-500/20 via-orange-600/10 to-transparent border border-orange-500/20 p-4 group hover:border-orange-500/40 transition-all">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all" />
-                    <div className="relative flex items-center gap-3">
-                      <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
-                        <Filter className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-orange-400">{budgetData.percentUsed}%</p>
-                        <p className="text-xs text-orange-300/60">Використано</p>
+                        <p className="text-2xl font-bold text-green-400">{googleAccounts.length}</p>
+                        <p className="text-xs text-green-300/60">Наші (нові)</p>
                       </div>
                     </div>
                   </div>

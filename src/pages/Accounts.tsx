@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreVertical, Activity, XCircle, CheckCircle, Trash2, Edit, Eye, RefreshCw, Link2, Unlink, ExternalLink } from "lucide-react";
+import { Search, Plus, MoreVertical, Activity, XCircle, CheckCircle, Trash2, Edit, Eye, RefreshCw, Link2, Unlink, ExternalLink, Settings2, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,27 +155,46 @@ const Accounts = () => {
   };
 
   const handleSaveGoogleConnection = async () => {
-    if (!connectAccount || !googleClientId || !googleClientSecret || !refreshToken || !connectedEmail) {
-      toast.error("Заполните все поля");
+    if (!connectAccount) {
+      toast.error("Не выбран аккаунт");
+      return;
+    }
+
+    if (!googleClientId || !googleClientSecret) {
+      toast.error("Введите Client ID и Client Secret");
+      return;
+    }
+
+    if (refreshToken && !connectedEmail) {
+      toast.error("Укажите email Google аккаунта для сохранения refresh token");
       return;
     }
 
     setSaving(true);
     try {
+      const updates: Record<string, any> = {
+        google_client_id: googleClientId.trim(),
+        google_client_secret: googleClientSecret.trim(),
+      };
+
+      if (refreshToken) {
+        updates.google_refresh_token = refreshToken.trim();
+        updates.google_connected_email = connectedEmail.trim();
+        updates.google_connected_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('mss_accounts')
-        .update({
-          google_client_id: googleClientId,
-          google_client_secret: googleClientSecret,
-          google_refresh_token: refreshToken,
-          google_connected_email: connectedEmail,
-          google_connected_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', connectAccount.id);
 
       if (error) throw error;
 
-      toast.success("Google Ads успешно подключен!");
+      toast.success(
+        refreshToken 
+          ? "Google Ads успешно подключен вручную!"
+          : "OAuth данные сохранены. Теперь можете нажать «Подключить Google Ads»."
+      );
       setShowConnectDialog(false);
       setGoogleClientId("");
       setGoogleClientSecret("");
@@ -573,6 +592,15 @@ const Accounts = () => {
                             )}
                           </>
                         )}
+                        {canEdit && (
+                          <DropdownMenuItem 
+                            onClick={() => handleConnectGoogleManual(account)}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Settings2 className="h-4 w-4" />
+                            OAuth настройки
+                          </DropdownMenuItem>
+                        )}
                         {canDelete && (
                           <>
                             <DropdownMenuSeparator className="bg-border/50" />
@@ -675,22 +703,26 @@ const Accounts = () => {
       <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
         <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Подключить Google Ads</DialogTitle>
+            <DialogTitle>OAuth настройки Google Ads</DialogTitle>
             <DialogDescription>
-              Введите данные для подключения Google Ads API к "{connectAccount?.name}"
+              Эта форма нужна только если для "{connectAccount?.name}" требуется собственный OAuth клиент Google Cloud.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-500">
+              По умолчанию система использует наш опубликованный OAuth клиент, и от вас требуется лишь нажать «Подключить Google Ads» и войти под нужной почтой.
+              Используйте эту форму только если Google требует подключить собственный OAuth проект для конкретного MCC.
+            </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Client ID *</label>
+              <label className="text-sm font-medium">Client ID (обязательно при сохранении своих данных)</label>
               <Input
-                placeholder="572283707219-xxx.apps.googleusercontent.com"
+                placeholder="669872731512-xxx.apps.googleusercontent.com"
                 value={googleClientId}
                 onChange={(e) => setGoogleClientId(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Client Secret *</label>
+              <label className="text-sm font-medium">Client Secret (обязательно при сохранении своих данных)</label>
               <Input
                 placeholder="GOCSPX-xxx"
                 value={googleClientSecret}
@@ -698,7 +730,7 @@ const Accounts = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Refresh Token *</label>
+              <label className="text-sm font-medium">Refresh Token (опционально)</label>
               <Input
                 placeholder="1//0xxx"
                 value={refreshToken}
@@ -706,7 +738,7 @@ const Accounts = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email Google аккаунта *</label>
+              <label className="text-sm font-medium">Email Google аккаунта (обязательно, если есть Refresh Token)</label>
               <Input
                 placeholder="dev@pestnovaltd.com"
                 value={connectedEmail}
@@ -720,7 +752,7 @@ const Accounts = () => {
               <p className="text-xs text-blue-400">
                 <strong>Де взяти ці дані:</strong><br/>
                 1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="underline">Google Cloud Console</a> → OAuth Client ID/Secret<br/>
-                2. <a href="https://developers.google.com/oauthplayground" target="_blank" className="underline">OAuth Playground</a> → Refresh Token
+                2. <a href="https://developers.google.com/oauthplayground" target="_blank" className="underline">OAuth Playground</a> → Refresh Token (при необходимости)
               </p>
             </div>
           </div>
@@ -730,11 +762,11 @@ const Accounts = () => {
             </Button>
             <Button 
               onClick={handleSaveGoogleConnection}
-              disabled={saving || !googleClientId || !googleClientSecret || !refreshToken || !connectedEmail}
+              disabled={saving || !googleClientId || !googleClientSecret || (!!refreshToken && !connectedEmail)}
               className="gap-2"
             >
-              {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-              Подключить
+              {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Сохранить данные
             </Button>
           </DialogFooter>
         </DialogContent>
