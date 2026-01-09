@@ -72,16 +72,11 @@ const Accounts = () => {
   const [connectedEmail, setConnectedEmail] = useState("");
   const [saving, setSaving] = useState(false);
   
-  // Add MSS Account
+  // Add MSS Account - спрощена форма
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newAccount, setNewAccount] = useState({
-    name: "",
-    mcc_number: "",
-    developer_token: "",
-    manager_email: ""
-  });
+  const [newMccNumber, setNewMccNumber] = useState("");
+  const [newMccName, setNewMccName] = useState("");
   const [adding, setAdding] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
   // Disconnect Google
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -208,29 +203,28 @@ const Accounts = () => {
     }
   };
 
-  const handleAddAccount = async () => {
-    // Validate required fields
-    const errors: string[] = [];
-    
-    if (!newAccount.name.trim()) errors.push("Название");
-    if (!newAccount.mcc_number.trim()) errors.push("MCC номер");
-    if (!newAccount.developer_token.trim()) errors.push("Developer Token");
-    if (!newAccount.manager_email.trim()) errors.push("Email менеджера");
+  // Дефолтний Developer Token (ALMZ)
+  const DEFAULT_DEVELOPER_TOKEN = "5k9zvX4_DBzcFeyO_dwArQ";
 
-    setValidationErrors(errors);
+  const handleAddAccount = async () => {
+    // Validate - тільки MCC номер обов'язковий
+    const mccNumber = newMccNumber.trim().replace(/[-\s]/g, '');
     
-    if (errors.length > 0) {
-      toast.error(`Не заполнено: ${errors.join(", ")}`);
+    if (!mccNumber || mccNumber.length < 10) {
+      toast.error("Введіть коректний MCC номер (10 цифр)");
       return;
     }
 
     setAdding(true);
     try {
+      // Автоматична назва якщо не вказана
+      const name = newMccName.trim() || `MCC ${mccNumber.slice(0, 3)}-${mccNumber.slice(3, 6)}-${mccNumber.slice(6)}`;
+      
       const insertData = {
-        name: newAccount.name.trim(),
-        mcc_number: newAccount.mcc_number.trim(),
-        developer_token: newAccount.developer_token.trim(),
-        manager_email: newAccount.manager_email.trim(),
+        name,
+        mcc_number: mccNumber,
+        developer_token: DEFAULT_DEVELOPER_TOKEN,
+        manager_email: "auto@mss.service",
         status: 'active' as const
       };
 
@@ -246,18 +240,22 @@ const Accounts = () => {
       await logActivity({
         action: 'create_mss',
         entityType: 'mss_account',
-        entityName: newAccount.name,
-        details: { mcc_number: newAccount.mcc_number }
+        entityName: name,
+        details: { mcc_number: mccNumber }
       });
       
-      toast.success(`MCC "${newAccount.name}" добавлен! Подключите Google Ads вручную.`);
+      toast.success(`MCC додано! Зараз підключаємо Google Ads...`);
       setShowAddDialog(false);
-      setNewAccount({ name: "", mcc_number: "", developer_token: "", manager_email: "" });
-      setValidationErrors([]);
-      loadAccounts();
+      setNewMccNumber("");
+      setNewMccName("");
+      
+      // Автоматично запускаємо OAuth
+      if (data) {
+        await loadAccounts();
+        handleConnectGoogle(data as MSSAccount);
+      }
     } catch (error: any) {
-      toast.error("Ошибка добавления: " + error.message);
-    } finally {
+      toast.error("Помилка: " + error.message);
       setAdding(false);
     }
   };
@@ -409,21 +407,21 @@ const Accounts = () => {
           <div className="flex gap-2">
             {canCreate && (
               <Button 
-                variant="outline"
                 onClick={() => setShowAddDialog(true)}
-                className="gap-2"
+                className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
               >
                 <Plus className="h-4 w-4" />
-                Добавить MCC
+                Підключити MCC
               </Button>
             )}
             {canCreate && (
               <Button 
+                variant="outline"
                 onClick={() => navigate("/add-account")}
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Создать аккаунты
+                Створити акаунти
               </Button>
             )}
           </div>
@@ -772,100 +770,61 @@ const Accounts = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add MSS Account Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={(open) => {
-        setShowAddDialog(open);
-        if (!open) setValidationErrors([]);
-      }}>
-        <DialogContent className="bg-card border-border/50 max-w-xl max-h-[90vh] overflow-y-auto">
+      {/* Add MSS Account Dialog - Спрощена версія */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="bg-card border-border/50 max-w-md">
           <DialogHeader>
-            <DialogTitle>Добавить MCC аккаунт</DialogTitle>
+            <DialogTitle className="text-xl">🚀 Підключити MCC</DialogTitle>
             <DialogDescription>
-              Заполните данные для добавления нового MCC
+              Введіть номер MCC і ми автоматично підключимо Google Ads
             </DialogDescription>
           </DialogHeader>
           
-          {/* Validation Errors */}
-          {validationErrors.length > 0 && (
-            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
-              <p className="text-sm font-medium text-destructive mb-1">Не заполнено:</p>
-              <ul className="text-sm text-destructive/80 list-disc list-inside">
-                {validationErrors.map((err, i) => (
-                  <li key={i}>{err}</li>
-                ))}
-              </ul>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">MCC номер *</label>
+              <Input
+                placeholder="521-179-6829 або 5211796829"
+                value={newMccNumber}
+                onChange={(e) => setNewMccNumber(e.target.value)}
+                className="h-12 text-lg font-mono text-center"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                Знайдіть у Google Ads → Налаштування → Ідентифікатор клієнта
+              </p>
             </div>
-          )}
-
-          <div className="space-y-4 py-2">
-            {/* Basic Info */}
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">Основная информация</p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Название *</label>
-                  <Input
-                    placeholder="BETA_STONE"
-                    value={newAccount.name}
-                    onChange={(e) => setNewAccount({...newAccount, name: e.target.value})}
-                    className={validationErrors.includes("Название") ? "border-destructive" : ""}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">MCC номер *</label>
-                  <Input
-                    placeholder="521-179-6829"
-                    value={newAccount.mcc_number}
-                    onChange={(e) => setNewAccount({...newAccount, mcc_number: e.target.value})}
-                    className={validationErrors.includes("MCC номер") ? "border-destructive" : ""}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Developer Token *</label>
-                <Input
-                  placeholder="eWBN45P304d-0JNtxagyUg"
-                  value={newAccount.developer_token}
-                  onChange={(e) => setNewAccount({...newAccount, developer_token: e.target.value})}
-                  className={validationErrors.includes("Developer Token") ? "border-destructive" : ""}
-                />
-                <p className="text-xs text-muted-foreground">Из Google Ads API Center</p>
-              </div>
-              
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Email менеджера *</label>
-                <Input
-                  placeholder="dev@pestnovaltd.com"
-                  value={newAccount.manager_email}
-                  onChange={(e) => setNewAccount({...newAccount, manager_email: e.target.value})}
-                  className={validationErrors.includes("Email менеджера") ? "border-destructive" : ""}
-                />
-              </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Назва (опціонально)</label>
+              <Input
+                placeholder="Моя компанія"
+                value={newMccName}
+                onChange={(e) => setNewMccName(e.target.value)}
+              />
             </div>
 
-            {/* Info */}
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs text-amber-400">
-                <strong>Після створення MCC:</strong><br/>
-                Підключіть Google Ads через меню "..." → "Подключить Google Ads".<br/>
-                Там введете Client ID, Client Secret та Refresh Token.
+            <div className="p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+              <p className="text-sm text-green-400 text-center">
+                <strong>Що буде далі:</strong><br/>
+                1. Натискаєте "Підключити"<br/>
+                2. Входите в Google акаунт з доступом до MCC<br/>
+                3. Готово! ✨
               </p>
             </div>
           </div>
           
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Отмена
+              Скасувати
             </Button>
             <Button 
               onClick={handleAddAccount}
-              disabled={adding}
-              className="gap-2"
+              disabled={adding || !newMccNumber.trim()}
+              className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
             >
-              {adding ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Добавить MCC
+              {adding ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+              {adding ? "Підключення..." : "Підключити MCC"}
             </Button>
           </DialogFooter>
         </DialogContent>
